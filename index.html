@@ -1,0 +1,93 @@
+<html>
+    <head>
+        <title>Trello List</title>
+    </head>
+    <body>
+        <div id="app" class="container">
+            <div v-if="error" class="alert alert-danger">{{ error }}</div>
+            <div class="card mb-3" v-for="board in boards">
+                <div class="card-header">
+                    <a :href="board.url" target="_blank">{{board.name}}</a>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item" v-for="card in cards[board.id]">
+                        <a :href="card.url" target="_blank">{{ card.name }}</a>
+                    </li>
+                </ul>
+            </div>
+            {{lists}}
+        </div>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+        <script src="http://code.jquery.com/jquery-3.3.1.min.js" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.8/dist/vue.js"></script>
+
+        <script src="https://api.trello.com/1/client.js?key=1c97102fc954f35b60f9d14d7b35a679"></script>
+
+        <script type="text/javascript">
+        var app = new Vue({
+            el: '#app',
+            data: {
+                error: null,
+                boards: [],
+                lists: {},
+                cards: {}
+            },
+            mounted: function() {
+                var vm = this;
+
+                window.Trello.authorize({
+                    type: 'popup',
+                    name: 'Getting Started Application',
+                    scope: {
+                        read: 'true',
+                        write: 'true'
+                    },
+                    expiration: 'never',
+                    success: function() {
+                        vm.getBoards();
+                    },
+                    error: function() {
+                        vm.error = 'Failed authentication';
+                    }
+                });
+            },
+            methods: {
+                getBoards: function() {
+                    var vm = this;
+                    Trello.get('/member/me/boards?filter=open', function(response) {
+                        vm.boards = response;
+
+                        vm.boards.map(function(board) {
+                            vm.getLists(board.id);
+                            vm.getOpenVisible(board.id);
+                        });
+                    }, function(error) {
+                        vm.error = error;
+                    });
+                },
+
+                getLists: function(boardId) {
+                    var vm = this;
+                    Trello.get('/boards/'+boardId+'/lists/open', function(response) {
+                        vm.$set(vm.lists, boardId, response);
+                    }, function(error) {
+                        vm.error = error;
+                    });
+                },
+
+                getOpenVisible: function(boardId) {
+                    var vm = this;
+                    Trello.get('/boards/'+boardId+'/cards/visible', function(response) {
+                        vm.$set(vm.cards, boardId, response);
+                    }, function(error) {
+                        vm.error = error;
+                    });
+                }
+            }
+        });
+        </script>
+    </body>
+</html>
