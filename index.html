@@ -5,17 +5,32 @@
     <body>
         <div id="app" class="container">
             <div v-if="error" class="alert alert-danger">{{ error }}</div>
-            <div class="card mb-3" v-for="board in boards">
+
+            <div class="card mb-3" v-if="meCards.length > 0">
+                <div class="card-header">Minhas tarefas</div>
+                <ul class="list-group list-group-flush">
+                    <tl-card
+                        v-for="card in meCards"
+                        :card="card"
+                    ></tl-card>
+                </ul>
+            </div>
+
+            <div
+                class="card mb-3"
+                v-if="boards.length > 0"
+                v-for="board in boards"
+            >
                 <div class="card-header">
                     <a :href="board.url" target="_blank">{{board.name}}</a>
                 </div>
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item" v-for="card in cards[board.id]">
-                        <a :href="card.url" target="_blank">{{ card.name }}</a>
-                    </li>
+                    <tl-card
+                        v-for="card in cards[board.id]"
+                        :card="card"
+                    ></tl-card>
                 </ul>
             </div>
-            {{lists}}
         </div>
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 
@@ -27,13 +42,30 @@
         <script src="https://api.trello.com/1/client.js?key=1c97102fc954f35b60f9d14d7b35a679"></script>
 
         <script type="text/javascript">
+
+        Vue.component('tl-label', {
+            props: ['name', 'color'],
+            template: '#label-template',
+            computed: {
+                backgroundColor: function() {
+                    return { 'background-color': this.color };
+                }
+            }
+        });
+
+        Vue.component('tl-card', {
+            props: ['card'],
+            template: '#card-template'
+        });
+
         var app = new Vue({
             el: '#app',
             data: {
                 error: null,
                 boards: [],
                 lists: {},
-                cards: {}
+                cards: {},
+                meCards: []
             },
             mounted: function() {
                 var vm = this;
@@ -47,6 +79,7 @@
                     },
                     expiration: 'never',
                     success: function() {
+                        vm.getMeCards();
                         vm.getBoards();
                     },
                     error: function() {
@@ -62,7 +95,7 @@
 
                         vm.boards.map(function(board) {
                             vm.getLists(board.id);
-                            vm.getOpenVisible(board.id);
+                            vm.getVisibleCards(board.id);
                         });
                     }, function(error) {
                         vm.error = error;
@@ -78,9 +111,18 @@
                     });
                 },
 
-                getOpenVisible: function(boardId) {
+                getMeCards: function() {
                     var vm = this;
-                    Trello.get('/boards/'+boardId+'/cards/visible', function(response) {
+                    Trello.get('/members/me/cards/?filter=visible&fields=id,name,url,labels', function(response) {
+                        vm.meCards = response;
+                    }, function(error) {
+                        vm.error = error;
+                    });
+                },
+
+                getVisibleCards: function(boardId) {
+                    var vm = this;
+                    Trello.get('/boards/'+boardId+'/cards/visible?fields=id,name,url,labels', function(response) {
                         vm.$set(vm.cards, boardId, response);
                     }, function(error) {
                         vm.error = error;
@@ -88,6 +130,28 @@
                 }
             }
         });
+        </script>
+
+        <script type="text/x-template" id="card-template">
+            <li class="list-group-item">
+                <tl-label
+                    v-for="label in card.labels"
+                    :key="label.id"
+                    :name="label.name"
+                    :color="label.color"
+                >
+                </tl-label>
+                <a :href="card.url" target="_blank">{{ card.name }}</a>
+            </li>
+        </script>
+
+        <script type="text/x-template" id="label-template">
+            <span
+                class="badge badge-primary float-right mr-1"
+                :style="backgroundColor"
+            >
+                {{name}}
+            </span>
         </script>
     </body>
 </html>
